@@ -8,6 +8,36 @@ export const COUNTRY_CODES = {
   'USA': 'US', 'Qatar': 'QA', 'Kuwait': 'KW', 'Oman': 'OM',
 };
 
+// MMSI Maritime Identification Digits (MID) — first 3 digits identify the country
+const MMSI_MID = {
+  'Panama':           '352',
+  'Liberia':          '636',
+  'Marshall Islands': '538',
+  'Iran':             '422',
+  'Saudi Arabia':     '403',
+  'UAE':              '470',
+  'China':            '413',
+  'India':            '419',
+  'Singapore':        '564',
+  'Bahamas':          '308',
+  'Greece':           '237',
+  'Malta':            '215',
+  'Japan':            '431',
+  'South Korea':      '440',
+  'Norway':           '257',
+  'United Kingdom':   '232',
+  'USA':              '367',
+  'Qatar':            '466',
+  'Kuwait':           '447',
+  'Oman':             '461',
+};
+
+export function generateMMSI(country) {
+  const mid = MMSI_MID[country] || '000';
+  const suffix = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+  return mid + suffix;
+}
+
 export function getFlagUrl(country) {
   const code = COUNTRY_CODES[country];
   return code ? `https://flagcdn.com/w80/${code.toLowerCase()}.png` : null;
@@ -104,7 +134,52 @@ function jitterAlongLane(lane, progress) {
   };
 }
 
-export function generateVessels(count = 48) {
+function makeVessel(id, flag, typeKeys, weights, cumulative, sum, usedNames) {
+  const r = Math.random() * sum;
+  const typeIdx = cumulative.findIndex(c => r < c);
+  const type = typeKeys[typeIdx];
+
+  let name;
+  do { name = pick(VESSEL_NAMES); } while (usedNames.has(name));
+  usedNames.add(name);
+
+  const direction = Math.random() > 0.5 ? 'inbound' : 'outbound';
+  const pos = jitterAlongLane(LANES[direction], Math.random());
+
+  const statuses = ['underway', 'underway', 'underway', 'at anchor', 'moored'];
+  const status = pick(statuses);
+  const speed = status === 'underway' ? +rand(8, 16).toFixed(1) : 0;
+  const heading = status === 'underway'
+    ? (direction === 'inbound' ? Math.floor(rand(260, 310)) : Math.floor(rand(80, 130)))
+    : 0;
+
+  const origin = pick(ORIGINS);
+  let destination;
+  do { destination = pick(DESTINATIONS); } while (destination === origin);
+
+  return {
+    id,
+    name,
+    mmsi: generateMMSI(flag),
+    type,
+    typeLabel: SHIP_TYPES[type].label,
+    color: SHIP_TYPES[type].color,
+    silhouette: SHIP_TYPES[type].silhouette,
+    flag,
+    lat: +pos.lat.toFixed(5),
+    lng: +pos.lng.toFixed(5),
+    speed,
+    heading,
+    origin,
+    destination,
+    status,
+    direction,
+    length: Math.floor(rand(80, 340)),
+    draft: +rand(6, 22).toFixed(1),
+  };
+}
+
+export function generateVessels(count = 60) {
   const typeKeys = Object.keys(SHIP_TYPES);
   const weights = [30, 15, 12, 8, 10, 6, 4, 3, 12];
   const cumulative = [];
@@ -114,50 +189,17 @@ export function generateVessels(count = 48) {
   const vessels = [];
   const usedNames = new Set();
 
-  for (let i = 0; i < count; i++) {
-    const r = Math.random() * sum;
-    const typeIdx = cumulative.findIndex(c => r < c);
-    const type = typeKeys[typeIdx];
+  // Guarantee every flag appears at least twice
+  const guaranteedFlags = [...FLAGS, ...FLAGS];
+  guaranteedFlags.forEach((flag, i) => {
+    vessels.push(makeVessel(i, flag, typeKeys, weights, cumulative, sum, usedNames));
+  });
 
-    let name;
-    do { name = pick(VESSEL_NAMES); } while (usedNames.has(name));
-    usedNames.add(name);
-
-    const direction = Math.random() > 0.5 ? 'inbound' : 'outbound';
-    const pos = jitterAlongLane(LANES[direction], Math.random());
-
-    const statuses = ['underway', 'underway', 'underway', 'at anchor', 'moored'];
-    const status = pick(statuses);
-    const speed = status === 'underway' ? +rand(8, 16).toFixed(1) : 0;
-    const heading = status === 'underway'
-      ? (direction === 'inbound' ? Math.floor(rand(260, 310)) : Math.floor(rand(80, 130)))
-      : 0;
-
-    const origin = pick(ORIGINS);
-    let destination;
-    do { destination = pick(DESTINATIONS); } while (destination === origin);
-
-    vessels.push({
-      id: i,
-      name,
-      imo: '9' + String(Math.floor(Math.random() * 900000 + 100000)),
-      type,
-      typeLabel: SHIP_TYPES[type].label,
-      color: SHIP_TYPES[type].color,
-      silhouette: SHIP_TYPES[type].silhouette,
-      flag: pick(FLAGS),
-      lat: +pos.lat.toFixed(5),
-      lng: +pos.lng.toFixed(5),
-      speed,
-      heading,
-      origin,
-      destination,
-      status,
-      direction,
-      length: Math.floor(rand(80, 340)),
-      draft: +rand(6, 22).toFixed(1),
-    });
+  // Fill the rest randomly
+  for (let i = guaranteedFlags.length; i < Math.max(count, guaranteedFlags.length); i++) {
+    vessels.push(makeVessel(i, pick(FLAGS), typeKeys, weights, cumulative, sum, usedNames));
   }
+
   return vessels;
 }
 

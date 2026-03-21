@@ -1,4 +1,3 @@
-// Raw SVG path strings for Leaflet DivIcon markers (can't use JSX)
 export const SILHOUETTE_PATHS = {
   tanker:    'M5 18 L10 20 L90 20 L95 18 L92 16 L85 14 L80 10 L75 8 L70 8 L65 10 L60 10 L55 10 L20 10 L15 12 L10 16 Z M72 8 L72 4 L74 4 L74 8 M40 10 L40 6 L55 6 L55 10',
   lng:       'M5 18 L10 20 L90 20 L95 18 L90 14 L85 12 L80 10 L75 8 L25 8 L20 10 L15 14 L10 16 Z M30 8 L30 3 Q40 0 50 3 L50 8 M55 8 L55 3 Q65 0 75 3 L75 8',
@@ -10,7 +9,7 @@ export const SILHOUETTE_PATHS = {
   tug:       'M10 16 L15 18 L75 18 L85 16 L80 14 L75 12 L70 10 L60 8 L40 8 L30 10 L20 12 L15 14 Z M55 8 L55 4 L58 4 L58 8 M45 8 L45 5 L50 5 L50 8',
 };
 
-export function getShipMarkerHtml(vessel) {
+export function getShipMarkerHtml(vessel, isSelected = false) {
   const path = SILHOUETTE_PATHS[vessel.silhouette] || SILHOUETTE_PATHS.cargo;
   const flagCode = {
     'Panama':'pa','Liberia':'lr','Marshall Islands':'mh','Iran':'ir',
@@ -21,18 +20,20 @@ export function getShipMarkerHtml(vessel) {
   }[vessel.flag] || 'un';
 
   const rotation = vessel.heading || 0;
+  const selClass = isSelected ? ' selected' : '';
+  const glow     = isSelected ? `filter: drop-shadow(0 0 6px ${vessel.color});` : '';
 
   return `
     <div class="ship-marker-wrap">
-      <div class="ship-icon-container" style="transform: rotate(${rotation - 90}deg)">
-        <svg viewBox="0 0 100 22" width="44" height="11" class="ship-svg">
+      <div class="ship-icon-container${selClass}" style="transform: rotate(${rotation - 90}deg)">
+        <svg viewBox="0 0 100 22" width="44" height="11" class="ship-svg" style="${glow}">
           <g fill="${vessel.color}" stroke="${vessel.color}" stroke-width="0.8">
             <path d="${path}" />
           </g>
         </svg>
       </div>
       <img src="https://flagcdn.com/w40/${flagCode}.png" class="ship-flag-badge" alt="${vessel.flag}" />
-      <div class="ship-name-label" style="border-left: 3px solid ${vessel.color}">${vessel.name}</div>
+      <div class="ship-name-label" style="border-left: 3px solid ${vessel.color}; ${isSelected ? `color: ${vessel.color};` : ''}">${vessel.name}</div>
     </div>
   `;
 }

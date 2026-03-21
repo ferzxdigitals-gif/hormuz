@@ -84,7 +84,7 @@ function StatCard({ label, value, sub, trend, color }) {
   );
 }
 
-export default function TrafficAnalytics() {
+export default function TrafficAnalytics({ darkMode = true }) {
   const currentVessels = HISTORICAL_DATA[HISTORICAL_DATA.length - 1].vessels;
   const reduction = PRE_CRISIS_AVG - currentVessels;
   const reductionPct = ((reduction / PRE_CRISIS_AVG) * 100).toFixed(1);
@@ -209,7 +209,7 @@ export default function TrafficAnalytics() {
             plugins: {
               legend: {
                 position: 'top',
-                labels: { boxWidth: 14, padding: 16, font: { size: 11 }, color: '#475569' },
+                labels: { boxWidth: 14, padding: 16, font: { size: 11 }, color: darkMode ? '#8b9eb0' : '#475569' },
               },
               tooltip: {
                 callbacks: {
@@ -222,14 +222,14 @@ export default function TrafficAnalytics() {
             },
             scales: {
               x: {
-                grid: { color: '#f1f5f9' },
-                ticks: { font: { size: 10 }, color: '#94a3b8', maxRotation: 45 },
+                grid: { color: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)' },
+                ticks: { font: { size: 10 }, color: darkMode ? '#4a5a6a' : '#94a3b8', maxRotation: 45 },
               },
               y: {
-                grid: { color: '#f1f5f9' },
+                grid: { color: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)' },
                 min: 0,
                 max: 160,
-                ticks: { color: '#94a3b8' },
+                ticks: { color: darkMode ? '#4a5a6a' : '#94a3b8' },
               },
             },
             maintainAspectRatio: false,
