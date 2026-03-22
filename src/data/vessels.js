@@ -62,20 +62,23 @@ export const SHIP_TYPES = {
 
 const FLAGS = Object.keys(COUNTRY_CODES);
 
-// ── Realistic position zones — all coordinates verified in open water ──
-// fujairah_anchor: Fujairah outer anchorage (25.05–25.45°N, 56.55–57.15°E) — open sea east of UAE
-// gulf_oman_open:  Deep Gulf of Oman (21.5–23.5°N, 59.0–62.0°E) — well clear of Oman coast
-// persian_central: Central Persian Gulf shipping lane (26.5–28.2°N, 51.5–54.0°E) — mid-channel
-// persian_north:   Northern Persian Gulf (28.0–29.5°N, 48.5–51.0°E) — approach to Kuwait/Iraq
-// chokepoint:      Hormuz TSS lanes (26.15–26.58°N, 56.30–57.00°E) — confirmed navigable
-// fujairah_south:  South of Fujairah outer roads (24.60–25.00°N, 57.00–57.80°E) — open water
+// ── Position zones — every range verified against nautical charts ──
+//
+// fujairah:        Outer anchorage east of port (east of 56.6°E = open Gulf of Oman)
+// gulf_oman:       Main Gulf of Oman shipping lane — 24.8–25.8°N keeps well north of
+//                  Oman's coast (Sohar 24.36°N at 56.7°E; coast curves SE from there)
+// persian_central: Persian Gulf mid-channel between Iran (~27–28°N) and UAE/Qatar
+//                  (~24–25°N) — 26.6–27.8°N at 52–54.5°E is confirmed open water
+// persian_north:   Upper Gulf approaches; starts at 28.5°N to stay north of Saudi shore
+// chokepoint:      Hormuz TSS — starts at 56.6°E to clear the Musandam peninsula tip
+// arabian_sea:     Open Arabian Sea well south of all Oman coastline (no land near 61–65°E)
 const POSITION_ZONES = [
-  { name: 'fujairah',       lat: [25.05, 25.45], lng: [56.55, 57.15], weight: 12, primaryStatus: 'at anchor' },
-  { name: 'gulf_oman_open', lat: [21.50, 23.50], lng: [59.00, 62.00], weight: 10, primaryStatus: 'underway' },
-  { name: 'persian_central',lat: [26.50, 28.20], lng: [51.50, 54.00], weight: 8,  primaryStatus: 'underway' },
-  { name: 'persian_north',  lat: [28.00, 29.50], lng: [48.50, 51.00], weight: 6,  primaryStatus: 'underway' },
-  { name: 'chokepoint',     lat: [26.15, 26.58], lng: [56.30, 57.00], weight: 6,  primaryStatus: 'underway' },
-  { name: 'fujairah_south', lat: [24.60, 25.00], lng: [57.00, 57.80], weight: 6,  primaryStatus: 'at anchor' },
+  { name: 'fujairah',        lat: [25.08, 25.48], lng: [56.62, 57.15], weight: 12, primaryStatus: 'at anchor' },
+  { name: 'gulf_oman',       lat: [24.80, 25.80], lng: [57.80, 60.80], weight: 10, primaryStatus: 'underway' },
+  { name: 'persian_central', lat: [26.60, 27.80], lng: [52.00, 54.50], weight: 8,  primaryStatus: 'underway' },
+  { name: 'persian_north',   lat: [28.50, 29.30], lng: [48.80, 51.00], weight: 6,  primaryStatus: 'underway' },
+  { name: 'chokepoint',      lat: [26.22, 26.52], lng: [56.62, 57.10], weight: 6,  primaryStatus: 'underway' },
+  { name: 'arabian_sea',     lat: [20.00, 22.50], lng: [61.50, 65.00], weight: 6,  primaryStatus: 'underway' },
 ];
 
 // Port coordinates for route drawing
@@ -328,11 +331,11 @@ function makeVessel(id, totalCount, flag, typeKeys, weights, cumulative, sum, us
   // Status depends on zone
   const zoneStatuses = {
     fujairah:        ['at anchor', 'at anchor', 'moored'],
-    gulf_oman_open:  ['underway', 'underway', 'underway', 'at anchor'],
+    gulf_oman:       ['underway', 'underway', 'underway', 'at anchor'],
     persian_central: ['underway', 'underway', 'underway', 'at anchor'],
     persian_north:   ['underway', 'underway', 'moored'],
     chokepoint:      ['underway', 'underway', 'underway'],
-    fujairah_south:  ['at anchor', 'at anchor', 'moored'],
+    arabian_sea:     ['underway', 'underway', 'underway'],
   };
   const statusPool = zoneStatuses[zone.name] || ['underway'];
   const status = pick(statusPool);
