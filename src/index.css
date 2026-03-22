@@ -76,7 +76,7 @@ body {
   align-items: center;
   padding: 0 28px;
   height: var(--header-h);
-  background: linear-gradient(135deg, #0a1628 0%, #050b18 100%);
+  background: linear-gradient(135deg, #0a1f2e 0%, #071422 100%);
   border-bottom: 1px solid var(--border-bright);
   box-shadow: 0 2px 24px rgba(0,0,0,0.7);
   position: sticky;
@@ -107,13 +107,17 @@ body {
   color: #fff;
   text-shadow: none;
 }
+.header-watch {
+  color: #ffffff;
+  opacity: 1;
+}
 .header-subtitle {
   font-size: 0.68rem;
-  opacity: 0.5;
   font-weight: 400;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #fff;
+  color: #ffffff;
+  text-shadow: 0 0 12px rgba(255,255,255,0.45), 0 0 28px rgba(180,230,255,0.2);
 }
 .live-badge {
   font-size: 0.7rem;
@@ -157,13 +161,12 @@ body {
 .clock-label {
   font-size: 0.6rem;
   font-weight: 600;
-  opacity: 0.55;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.5);
+  color: #ffffff;
 }
 .clock-time {
-  color: rgba(255,255,255,0.85);
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
 }
 .ship-count {
@@ -1107,7 +1110,7 @@ tr.row-selected td:first-child {
   align-items: center;
   justify-content: center;
   transition: all 0.18s;
-  color: var(--text-secondary);
+  color: #ffffff;
   font-size: 1.15rem;
   flex-shrink: 0;
 }
@@ -1428,17 +1431,21 @@ tr.row-selected td:first-child {
 }
 .vd-gallery-thumb.active { border-color: var(--accent); }
 .vd-gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.vd-detail-grid { display: flex; flex-direction: column; gap: 0; }
+.vd-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin-top: 4px;
+}
 .vd-detail-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 7px 0;
+  flex-direction: column;
+  padding: 8px 10px 8px 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.79rem;
 }
-.vd-detail-row span { color: var(--muted); }
-.vd-detail-row strong { color: var(--text); font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; }
+.vd-detail-row span  { color: var(--muted); font-size: 0.7rem; margin-bottom: 2px; }
+.vd-detail-row strong { color: var(--text); font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; word-break: break-all; }
 
 /* ══════════════════════════════════════════
    PORTS PANEL

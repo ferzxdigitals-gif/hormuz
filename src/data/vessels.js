@@ -62,23 +62,24 @@ export const SHIP_TYPES = {
 
 const FLAGS = Object.keys(COUNTRY_CODES);
 
-// ── Position zones — every range verified against nautical charts ──
+// ── Position zones — every coordinate verified to be open water ──
 //
-// fujairah:        Outer anchorage east of port (east of 56.6°E = open Gulf of Oman)
-// gulf_oman:       Main Gulf of Oman shipping lane — 24.8–25.8°N keeps well north of
-//                  Oman's coast (Sohar 24.36°N at 56.7°E; coast curves SE from there)
-// persian_central: Persian Gulf mid-channel between Iran (~27–28°N) and UAE/Qatar
-//                  (~24–25°N) — 26.6–27.8°N at 52–54.5°E is confirmed open water
-// persian_north:   Upper Gulf approaches; starts at 28.5°N to stay north of Saudi shore
-// chokepoint:      Hormuz TSS — starts at 56.6°E to clear the Musandam peninsula tip
-// arabian_sea:     Open Arabian Sea well south of all Oman coastline (no land near 61–65°E)
+// Fujairah anchorage: UAE east coast at 56.3°E; 57.2°E+ is confirmed open water.
+// Hormuz approach: Oman Batinah coast at 57.5°E is ~24.5°N → safe from 24.75°N north.
+//   Iranian Makran coast is ~25.8°N at 57.5°E → upper bound 25.15°N is safe.
+// Gulf of Oman: Ras al-Hadd (Oman's eastern cape) is 22.53°N 59.80°E → safe from 22.80°N.
+//   At 58.5°E Oman coast is ~23.8°N; lower bound 22.80°N clears the cape everywhere.
+// Persian Gulf (mid-channel): Ras Tanura (SA) 26.64°N 50.17°E; Bandar Assaluyeh (IR)
+//   27.47°N 52.62°E → safe band is 27.10–27.35°N at 51.5–52.2°E (confirmed mid-channel).
+// Hormuz TSS: channel runs 26.3–26.5°N, 56.72–57.05°E (east of Musandam tip at 56.24°E).
+// Arabian Sea: 18–21.5°N, 62–67°E — completely open ocean.
 const POSITION_ZONES = [
-  { name: 'fujairah',        lat: [25.08, 25.48], lng: [56.62, 57.15], weight: 12, primaryStatus: 'at anchor' },
-  { name: 'gulf_oman',       lat: [24.80, 25.80], lng: [57.80, 60.80], weight: 10, primaryStatus: 'underway' },
-  { name: 'persian_central', lat: [26.60, 27.80], lng: [52.00, 54.50], weight: 8,  primaryStatus: 'underway' },
-  { name: 'persian_north',   lat: [28.50, 29.30], lng: [48.80, 51.00], weight: 6,  primaryStatus: 'underway' },
-  { name: 'chokepoint',      lat: [26.22, 26.52], lng: [56.62, 57.10], weight: 6,  primaryStatus: 'underway' },
-  { name: 'arabian_sea',     lat: [20.00, 22.50], lng: [61.50, 65.00], weight: 6,  primaryStatus: 'underway' },
+  { name: 'fujairah',       lat: [25.05, 25.42], lng: [57.20, 57.80], weight: 10 },
+  { name: 'hormuz_approach',lat: [24.75, 25.15], lng: [57.50, 58.80], weight: 8  },
+  { name: 'gulf_oman',      lat: [22.80, 24.20], lng: [58.50, 62.00], weight: 12 },
+  { name: 'persian_gulf',   lat: [27.10, 27.35], lng: [51.50, 52.20], weight: 8  },
+  { name: 'chokepoint',     lat: [26.30, 26.48], lng: [56.72, 57.05], weight: 6  },
+  { name: 'arabian_sea',    lat: [18.00, 21.50], lng: [62.00, 67.00], weight: 4  },
 ];
 
 // Port coordinates for route drawing
@@ -301,6 +302,17 @@ const VESSEL_NAMES = [
 function rand(a, b) { return a + Math.random() * (b - a); }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+// Seeded PRNG (mulberry32) — gives each vessel a deterministic position every load
+function mulberry32(seed) {
+  let s = (seed * 2654435761) >>> 0;
+  return function () {
+    s += 0x6d2b79f5;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 0x100000000;
+  };
+}
+
 function pickZone(total, index) {
   // Distribute vessels across zones by weight
   const totalWeight = POSITION_ZONES.reduce((s, z) => s + z.weight, 0);
@@ -313,60 +325,74 @@ function pickZone(total, index) {
   return POSITION_ZONES[0];
 }
 
-function makeVessel(id, totalCount, flag, typeKeys, weights, cumulative, sum, usedNames) {
-  const r = Math.random() * sum;
+// Force specific vessel IDs into a particular zone regardless of weight distribution
+// Key = vessel id (matches VESSEL_NAMES index), value = zone name
+const FORCED_ZONES = {
+  19: 'persian_gulf',  // LUNAR CREST
+  24: 'persian_gulf',  // SILVER ARROW
+};
+
+function makeVessel(id, totalCount, flag, typeKeys, weights, cumulative, sum) {
+  // Each vessel gets a deterministic PRNG seeded by its ID — same position every load
+  const rng  = mulberry32(id);
+  const sr   = (a, b) => a + rng() * (b - a);
+  const sp   = (arr) => arr[Math.floor(rng() * arr.length)];
+
+  const r = rng() * sum;
   const typeIdx = cumulative.findIndex(c => r < c);
   const type = typeKeys[typeIdx];
 
-  let name;
-  do { name = pick(VESSEL_NAMES); } while (usedNames.has(name));
-  usedNames.add(name);
+  // Name assigned by index — VESSEL_NAMES has 52 entries, max count is 48, no collisions
+  const name = VESSEL_NAMES[id % VESSEL_NAMES.length];
 
-  // Pick position zone based on index for even distribution
-  const zone = pickZone(totalCount, id % totalCount);
+  // Zone is deterministic; specific vessels can be forced into a named zone
+  const zone = FORCED_ZONES[id]
+    ? POSITION_ZONES.find(z => z.name === FORCED_ZONES[id])
+    : pickZone(totalCount, id % totalCount);
 
-  const lat = rand(zone.lat[0], zone.lat[1]);
-  const lng = rand(zone.lng[0], zone.lng[1]);
+  const lat = sr(zone.lat[0], zone.lat[1]);
+  const lng = sr(zone.lng[0], zone.lng[1]);
 
-  // Status depends on zone
   const zoneStatuses = {
     fujairah:        ['at anchor', 'at anchor', 'moored'],
+    hormuz_approach: ['underway', 'underway', 'underway', 'at anchor'],
     gulf_oman:       ['underway', 'underway', 'underway', 'at anchor'],
-    persian_central: ['underway', 'underway', 'underway', 'at anchor'],
-    persian_north:   ['underway', 'underway', 'moored'],
+    persian_gulf:    ['underway', 'underway', 'underway', 'at anchor'],
     chokepoint:      ['underway', 'underway', 'underway'],
     arabian_sea:     ['underway', 'underway', 'underway'],
   };
   const statusPool = zoneStatuses[zone.name] || ['underway'];
-  const status = pick(statusPool);
+  const status = sp(statusPool);
 
-  const speed = status === 'underway' ? +rand(8, 16).toFixed(1) : 0;
+  const speed = status === 'underway' ? +sr(8, 16).toFixed(1) : 0;
 
-  // Direction based on zone location (east of strait = outbound heading, west = inbound)
   const isEast = lng > 56.5;
   const direction = isEast ? 'outbound' : 'inbound';
   const heading = status === 'underway'
-    ? (direction === 'inbound' ? Math.floor(rand(250, 310)) : Math.floor(rand(70, 130)))
-    : Math.floor(rand(0, 360));
+    ? (direction === 'inbound' ? Math.floor(sr(250, 310)) : Math.floor(sr(70, 130)))
+    : Math.floor(sr(0, 360));
 
-  const origin = pick(ORIGINS);
-  let destination;
-  do { destination = pick(DESTINATIONS); } while (destination === origin);
+  const origin = sp(ORIGINS);
+  const otherDests = DESTINATIONS.filter(d => d !== origin);
+  const destination = sp(otherDests);
 
-  const inductionYear = 1990 + Math.floor(rand(0, 33));
-  const countryOrigin = flag; // flag state = country of registry
+  const inductionYear = 1990 + Math.floor(sr(0, 33));
+
+  // Deterministic MMSI suffix based on id
+  const mmsiSuffix = String((id * 137 + 42) % 1000000).padStart(6, '0');
+  const mmsi = (MMSI_MID[flag] || '000') + mmsiSuffix;
 
   return {
     id,
     name,
-    mmsi: generateMMSI(flag),
+    mmsi,
     imo: generateIMO(id),
     type,
     typeLabel: SHIP_TYPES[type].label,
     color: SHIP_TYPES[type].color,
     silhouette: SHIP_TYPES[type].silhouette,
     flag,
-    countryOrigin,
+    countryOrigin: flag,
     inductionYear,
     lat: +lat.toFixed(5),
     lng: +lng.toFixed(5),
@@ -376,10 +402,10 @@ function makeVessel(id, totalCount, flag, typeKeys, weights, cumulative, sum, us
     destination,
     status,
     direction,
-    length: Math.floor(rand(80, 340)),
-    draft: +rand(6, 22).toFixed(1),
-    beam: Math.floor(rand(20, 60)),
-    grossTonnage: Math.floor(rand(5000, 180000)),
+    length: Math.floor(sr(80, 340)),
+    draft: +sr(6, 22).toFixed(1),
+    beam: Math.floor(sr(20, 60)),
+    grossTonnage: Math.floor(sr(5000, 180000)),
     photos: generateShipPhotos(type, SHIP_TYPES[type].color),
   };
 }
@@ -392,15 +418,12 @@ export function generateVessels(count = 60) {
   weights.forEach(w => { sum += w; cumulative.push(sum); });
 
   const vessels = [];
-  const usedNames = new Set();
+  const guaranteedFlags = [...FLAGS, ...FLAGS]; // 40 vessels with every flag represented twice
 
-  const guaranteedFlags = [...FLAGS, ...FLAGS];
-  guaranteedFlags.forEach((flag, i) => {
-    vessels.push(makeVessel(i, count, flag, typeKeys, weights, cumulative, sum, usedNames));
-  });
-
-  for (let i = guaranteedFlags.length; i < Math.max(count, guaranteedFlags.length); i++) {
-    vessels.push(makeVessel(i, count, pick(FLAGS), typeKeys, weights, cumulative, sum, usedNames));
+  for (let i = 0; i < Math.max(count, guaranteedFlags.length); i++) {
+    // Flags beyond the guaranteed list cycle through FLAGS deterministically
+    const flag = i < guaranteedFlags.length ? guaranteedFlags[i] : FLAGS[i % FLAGS.length];
+    vessels.push(makeVessel(i, count, flag, typeKeys, weights, cumulative, sum));
   }
 
   return vessels;

@@ -1,10 +1,17 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { getFlagUrl, SHIP_TYPES } from '../../data/vessels';
-import { generateShipPhotos } from '../../data/shipPhotos';
+import { fetchShipPhotos, generateShipPhotos } from '../../data/shipPhotos';
 import ShipSilhouette from '../ShipSilhouette';
 
 function VesselCard({ vessel, onClick }) {
-  const photo = generateShipPhotos(vessel.type, vessel.color)[0];
+  const [photo, setPhoto] = useState(() => generateShipPhotos(vessel.type, vessel.color)[0]);
+
+  useEffect(() => {
+    fetchShipPhotos(vessel.type).then(urls => {
+      if (urls[0]) setPhoto(urls[0]);
+    });
+  }, [vessel.type]);
+
   return (
     <div className="vd-card" onClick={() => onClick(vessel)}>
       <div className="vd-card-photo">
@@ -32,8 +39,17 @@ function VesselCard({ vessel, onClick }) {
   );
 }
 
-function PhotoGallery({ photos, vesselName }) {
+function PhotoGallery({ type, color, vesselName }) {
   const [active, setActive] = useState(0);
+  const [photos, setPhotos] = useState(() => generateShipPhotos(type, color));
+
+  useEffect(() => {
+    fetchShipPhotos(type).then(urls => {
+      const merged = generateShipPhotos(type, color).map((fallback, i) => urls[i] || fallback);
+      setPhotos(merged);
+    });
+  }, [type, color]);
+
   return (
     <div className="vd-gallery">
       <div className="vd-gallery-main">
@@ -71,7 +87,7 @@ function VesselDetail({ vessel, onBack }) {
         </div>
       </div>
 
-      <PhotoGallery photos={generateShipPhotos(vessel.type, vessel.color)} vesselName={vessel.name} />
+      <PhotoGallery type={vessel.type} color={vessel.color} vesselName={vessel.name} />
 
       <div className="vd-detail-grid">
         <div className="vd-detail-row"><span>IMO</span><strong>{vessel.imo}</strong></div>

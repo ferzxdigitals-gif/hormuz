@@ -1,10 +1,18 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import ShipSilhouette from './ShipSilhouette';
 import { getFlagUrl } from '../data/vessels';
-import { generateShipPhotos } from '../data/shipPhotos';
+import { fetchShipPhotos, generateShipPhotos } from '../data/shipPhotos';
 
 function ShipPhoto({ vessel }) {
-  const src = generateShipPhotos(vessel.type, vessel.color)[0];
+  const [src, setSrc] = useState(() => generateShipPhotos(vessel.type, vessel.color)[0]);
+
+  useEffect(() => {
+    fetchShipPhotos(vessel.type).then(urls => {
+      const real = urls[0];
+      if (real) setSrc(real);
+    });
+  }, [vessel.type]);
+
   return <img src={src} alt={vessel.name} className="table-ship-thumb" loading="lazy" />;
 }
 

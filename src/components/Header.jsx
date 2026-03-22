@@ -21,8 +21,10 @@ export default function Header({ vesselCount, darkMode, onToggleDark }) {
     return () => clearInterval(id);
   }, []);
 
+  const headerBg = `url('${import.meta.env.BASE_URL}header-bg.png') center/cover no-repeat`;
+
   return (
-    <header className="header">
+    <header className="header" style={{ backgroundImage: headerBg }}>
       <div className="header-left">
         <div className="logo">
           <svg viewBox="0 0 48 48" width="36" height="36">
@@ -41,8 +43,8 @@ export default function Header({ vesselCount, darkMode, onToggleDark }) {
           </svg>
         </div>
         <div className="header-title">
-          <h1>HORMUZ<span style={{ opacity: 0.55 }}>WATCH</span></h1>
-          <span className="header-subtitle">Strait of Hormuz · Maritime Intelligence</span>
+          <h1>HORMUZ<span className="header-watch">WATCH</span></h1>
+          <span className="header-subtitle">STRAIT OF HORMUZ · MARITIME INTELLIGENCE</span>
         </div>
         <span className="live-badge">● LIVE</span>
       </div>
