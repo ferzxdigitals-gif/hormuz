@@ -8,7 +8,6 @@ export const COUNTRY_CODES = {
   'USA': 'US', 'Qatar': 'QA', 'Kuwait': 'KW', 'Oman': 'OM',
 };
 
-// MMSI Maritime Identification Digits (MID) — first 3 digits identify the country
 const MMSI_MID = {
   'Panama':           '352',
   'Liberia':          '636',
@@ -38,6 +37,11 @@ export function generateMMSI(country) {
   return mid + suffix;
 }
 
+export function generateIMO(id) {
+  const base = 9000000 + (id * 71317 + 3141592) % 999999;
+  return `IMO ${base}`;
+}
+
 export function getFlagUrl(country) {
   const code = COUNTRY_CODES[country];
   return code ? `https://flagcdn.com/w80/${code.toLowerCase()}.png` : null;
@@ -56,6 +60,18 @@ export const SHIP_TYPES = {
 };
 
 const FLAGS = Object.keys(COUNTRY_CODES);
+
+// ── Realistic position zones reflecting war-time diversion ──
+// Ships are spread across Gulf of Oman, Fujairah anchorage, UAE ports
+// Only a few at the actual chokepoint (heavily reduced traffic)
+const POSITION_ZONES = [
+  { name: 'fujairah',     lat: [25.00, 25.40], lng: [56.20, 56.80], weight: 12, primaryStatus: 'at anchor' },
+  { name: 'gulf_oman',    lat: [22.50, 24.80], lng: [57.20, 60.50], weight: 10, primaryStatus: 'underway' },
+  { name: 'uae_coast',    lat: [24.50, 25.30], lng: [53.00, 55.50], weight: 8,  primaryStatus: 'underway' },
+  { name: 'persian_gulf', lat: [25.50, 27.50], lng: [50.00, 54.80], weight: 8,  primaryStatus: 'underway' },
+  { name: 'chokepoint',   lat: [26.10, 26.55], lng: [56.10, 57.10], weight: 6,  primaryStatus: 'underway' },
+  { name: 'oman_coast',   lat: [23.00, 24.50], lng: [57.50, 59.50], weight: 4,  primaryStatus: 'at anchor' },
+];
 
 // Port coordinates for route drawing
 export const PORT_COORDS = {
@@ -82,27 +98,102 @@ export const PORT_COORDS = {
   'Jubail':          { lat: 27.01, lng: 49.66 },
   'Mina Al Ahmadi':  { lat: 29.08, lng: 48.16 },
   'Das Island':      { lat: 25.15, lng: 52.87 },
+  'Abu Dhabi':       { lat: 24.48, lng: 54.37 },
 };
 
-const DESTINATIONS = Object.keys(PORT_COORDS);
-
-const ORIGINS = Object.keys(PORT_COORDS);
-
-const VESSEL_NAMES = [
-  'PACIFIC GLORY','ARABIAN STAR','GULF HARMONY','EASTERN DAWN',
-  'HORMUZ SPIRIT','PERSIAN VOYAGER','OCEAN TITAN','JADE FORTUNE',
-  'DESERT ROSE','SILK ROAD','GOLDEN HORIZON','SAPPHIRE SEA',
-  'THUNDER BAY','CORAL STREAM','AMBER LIGHT','NEPTUNE GRACE',
-  'ATLAS VENTURE','EMERALD WAVE','IRON BRIDGE','LUNAR CREST',
-  'CRIMSON TIDE','BLUE MARLIN','STELLAR WIND','PHOENIX SUN',
-  'SILVER ARROW','DRAGON PEARL','ROYAL PALM','ARCTIC BREEZE',
-  'RUBY QUEEN','DIAMOND PEAK','LIBERTY BELL','CRYSTAL HARBOR',
-  'BRAVE HEART','FALCON CREST','PROUD EAGLE','NORTHERN STAR',
-  'SOUTHERN CROSS','CEDAR GROVE','SUNSET BLVD','MONSOON TIDE',
-  'SCARLET DAWN','IVORY COAST','INDIGO SKY','BRONZE SHIELD',
-  'MARBLE ARCH','VELVET SEA','GRANITE PEAK','OPAL WAVE',
-  'TOPAZ DREAM','ONYX NIGHT','JASPER REEF','GARNET ISLE',
-];
+// Detailed port info for Ports panel
+export const PORT_DETAILS = {
+  'Fujairah': {
+    lat: 25.12, lng: 56.33, country: 'UAE', countryCode: 'AE',
+    type: 'Oil Terminal & Bunkering Hub', depth: '17 m', capacity: '120M tonnes/yr bunkering',
+    anchorage: 'Large (200+ vessels)', status: 'Operational',
+    description: 'One of the world\'s largest bunkering hubs and a key waypoint for vessels avoiding the Strait. Major waiting area during the current crisis.',
+  },
+  'Jebel Ali': {
+    lat: 25.00, lng: 55.06, country: 'UAE', countryCode: 'AE',
+    type: 'Container & General Port', depth: '17 m', capacity: '19M TEU/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'The largest port in the Middle East and 9th busiest globally. Hub for trans-shipment and supply chains.',
+  },
+  'Ras Tanura': {
+    lat: 26.64, lng: 50.17, country: 'Saudi Arabia', countryCode: 'SA',
+    type: 'Crude Oil Export Terminal', depth: '20 m', capacity: '6.5M bbl/day capacity',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Saudi Aramco\'s primary export terminal. One of the world\'s largest oil-loading facilities.',
+  },
+  'Kharg Island': {
+    lat: 29.23, lng: 50.31, country: 'Iran', countryCode: 'IR',
+    type: 'Crude Oil Terminal', depth: '18 m', capacity: '5M bbl/day',
+    anchorage: 'Yes', status: 'Operational (restricted)',
+    description: 'Iran\'s main crude oil export terminal, handling over 90% of the country\'s oil exports.',
+  },
+  'Bandar Abbas': {
+    lat: 27.18, lng: 56.28, country: 'Iran', countryCode: 'IR',
+    type: 'Multi-purpose Port', depth: '13 m', capacity: '20M tonnes/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Iran\'s largest port at the entrance to the Strait of Hormuz. Critical for military and commercial traffic.',
+  },
+  'Basra': {
+    lat: 30.50, lng: 47.83, country: 'Iraq', countryCode: 'IQ',
+    type: 'Oil Export Terminal', depth: '12 m', capacity: '4.5M bbl/day',
+    anchorage: 'Limited', status: 'Operational',
+    description: 'Iraq\'s primary oil export terminal on the Shatt al-Arab waterway.',
+  },
+  'Muscat': {
+    lat: 23.61, lng: 58.54, country: 'Oman', countryCode: 'OM',
+    type: 'General & Container Port', depth: '15 m', capacity: '4M TEU/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Oman\'s main port, strategically located outside the Strait of Hormuz.',
+  },
+  'Ras Laffan': {
+    lat: 25.93, lng: 51.53, country: 'Qatar', countryCode: 'QA',
+    type: 'LNG Export Terminal', depth: '16 m', capacity: '77M tonnes/yr LNG',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'The world\'s largest LNG export facility, serving Qatar\'s massive gas export operations.',
+  },
+  'Dammam': {
+    lat: 26.43, lng: 50.10, country: 'Saudi Arabia', countryCode: 'SA',
+    type: 'Container & General Port', depth: '14 m', capacity: '8M TEU/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Saudi Arabia\'s main gateway on the Arabian Gulf.',
+  },
+  'Kuwait City': {
+    lat: 29.35, lng: 47.95, country: 'Kuwait', countryCode: 'KW',
+    type: 'General Cargo & Oil Port', depth: '13 m', capacity: '3M TEU/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Kuwait\'s primary port and commercial hub on the northern Gulf.',
+  },
+  'Sohar': {
+    lat: 24.36, lng: 56.73, country: 'Oman', countryCode: 'OM',
+    type: 'Industrial & Container Port', depth: '18 m', capacity: '5M TEU/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Oman\'s fastest-growing industrial port, located just outside the Strait.',
+  },
+  'Das Island': {
+    lat: 25.15, lng: 52.87, country: 'UAE', countryCode: 'AE',
+    type: 'Offshore LNG Terminal', depth: '15 m', capacity: '12M tonnes/yr LNG',
+    anchorage: 'Limited', status: 'Operational',
+    description: 'Abu Dhabi\'s offshore LNG and crude oil export terminal in the Persian Gulf.',
+  },
+  'Mina Al Ahmadi': {
+    lat: 29.08, lng: 48.16, country: 'Kuwait', countryCode: 'KW',
+    type: 'Crude Oil Export Terminal', depth: '16 m', capacity: '2.5M bbl/day',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Kuwait\'s primary crude oil export facility.',
+  },
+  'Jubail': {
+    lat: 27.01, lng: 49.66, country: 'Saudi Arabia', countryCode: 'SA',
+    type: 'Industrial & Petrochemical Port', depth: '15 m', capacity: '30M tonnes/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'World\'s largest industrial city port, home to SABIC and major refineries.',
+  },
+  'Abu Dhabi': {
+    lat: 24.48, lng: 54.37, country: 'UAE', countryCode: 'AE',
+    type: 'Multi-purpose Port', depth: '15 m', capacity: '5M TEU/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Capital of UAE, major oil export hub and growing container port.',
+  },
+};
 
 export const LANES = {
   inbound: [
@@ -121,20 +212,63 @@ export const LANES = {
   ],
 };
 
+// Ship photo helper — uses loremflickr for actual maritime photos
+const TYPE_KEYWORDS = {
+  tanker:    'oil+tanker+ship',
+  product:   'tanker+vessel+sea',
+  lng:       'lng+carrier+ship',
+  bulk:      'bulk+carrier+ship',
+  container: 'container+ship+port',
+  cargo:     'cargo+ship+sea',
+  military:  'naval+warship+military',
+  passenger: 'cruise+ship+ocean',
+  tug:       'tugboat+harbor+service',
+};
+
+export function getVesselPhotos(type, id) {
+  const kw = TYPE_KEYWORDS[type] || 'ship+vessel+sea';
+  return [
+    `https://loremflickr.com/400/280/${kw}?lock=${id}`,
+    `https://loremflickr.com/400/280/${kw}?lock=${id + 100}`,
+    `https://loremflickr.com/400/280/maritime+${type === 'military' ? 'navy' : 'vessel'}?lock=${id + 200}`,
+  ];
+}
+
+const DESTINATIONS = Object.keys(PORT_COORDS);
+const ORIGINS = Object.keys(PORT_COORDS);
+
+const VESSEL_NAMES = [
+  'PACIFIC GLORY','ARABIAN STAR','GULF HARMONY','EASTERN DAWN',
+  'HORMUZ SPIRIT','PERSIAN VOYAGER','OCEAN TITAN','JADE FORTUNE',
+  'DESERT ROSE','SILK ROAD','GOLDEN HORIZON','SAPPHIRE SEA',
+  'THUNDER BAY','CORAL STREAM','AMBER LIGHT','NEPTUNE GRACE',
+  'ATLAS VENTURE','EMERALD WAVE','IRON BRIDGE','LUNAR CREST',
+  'CRIMSON TIDE','BLUE MARLIN','STELLAR WIND','PHOENIX SUN',
+  'SILVER ARROW','DRAGON PEARL','ROYAL PALM','ARCTIC BREEZE',
+  'RUBY QUEEN','DIAMOND PEAK','LIBERTY BELL','CRYSTAL HARBOR',
+  'BRAVE HEART','FALCON CREST','PROUD EAGLE','NORTHERN STAR',
+  'SOUTHERN CROSS','CEDAR GROVE','SUNSET BLVD','MONSOON TIDE',
+  'SCARLET DAWN','IVORY COAST','INDIGO SKY','BRONZE SHIELD',
+  'MARBLE ARCH','VELVET SEA','GRANITE PEAK','OPAL WAVE',
+  'TOPAZ DREAM','ONYX NIGHT','JASPER REEF','GARNET ISLE',
+];
+
 function rand(a, b) { return a + Math.random() * (b - a); }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-function jitterAlongLane(lane, progress) {
-  const idx = Math.min(Math.floor(progress * (lane.length - 1)), lane.length - 2);
-  const t = (progress * (lane.length - 1)) - idx;
-  const p0 = lane[idx], p1 = lane[idx + 1];
-  return {
-    lat: p0.lat + (p1.lat - p0.lat) * t + rand(-0.06, 0.06),
-    lng: p0.lng + (p1.lng - p0.lng) * t + rand(-0.06, 0.06),
-  };
+function pickZone(total, index) {
+  // Distribute vessels across zones by weight
+  const totalWeight = POSITION_ZONES.reduce((s, z) => s + z.weight, 0);
+  const slot = (index / total) * totalWeight;
+  let acc = 0;
+  for (const z of POSITION_ZONES) {
+    acc += z.weight;
+    if (slot < acc) return z;
+  }
+  return POSITION_ZONES[0];
 }
 
-function makeVessel(id, flag, typeKeys, weights, cumulative, sum, usedNames) {
+function makeVessel(id, totalCount, flag, typeKeys, weights, cumulative, sum, usedNames) {
   const r = Math.random() * sum;
   const typeIdx = cumulative.findIndex(c => r < c);
   const type = typeKeys[typeIdx];
@@ -143,31 +277,54 @@ function makeVessel(id, flag, typeKeys, weights, cumulative, sum, usedNames) {
   do { name = pick(VESSEL_NAMES); } while (usedNames.has(name));
   usedNames.add(name);
 
-  const direction = Math.random() > 0.5 ? 'inbound' : 'outbound';
-  const pos = jitterAlongLane(LANES[direction], Math.random());
+  // Pick position zone based on index for even distribution
+  const zone = pickZone(totalCount, id % totalCount);
 
-  const statuses = ['underway', 'underway', 'underway', 'at anchor', 'moored'];
-  const status = pick(statuses);
+  const lat = rand(zone.lat[0], zone.lat[1]);
+  const lng = rand(zone.lng[0], zone.lng[1]);
+
+  // Status depends on zone
+  const zoneStatuses = {
+    fujairah:     ['at anchor', 'at anchor', 'moored'],
+    gulf_oman:    ['underway', 'underway', 'underway', 'at anchor'],
+    uae_coast:    ['underway', 'underway', 'moored'],
+    persian_gulf: ['underway', 'underway', 'underway', 'at anchor'],
+    chokepoint:   ['underway', 'underway', 'underway'],
+    oman_coast:   ['at anchor', 'at anchor', 'moored'],
+  };
+  const statusPool = zoneStatuses[zone.name] || ['underway'];
+  const status = pick(statusPool);
+
   const speed = status === 'underway' ? +rand(8, 16).toFixed(1) : 0;
+
+  // Direction based on zone location (east of strait = outbound heading, west = inbound)
+  const isEast = lng > 56.5;
+  const direction = isEast ? 'outbound' : 'inbound';
   const heading = status === 'underway'
-    ? (direction === 'inbound' ? Math.floor(rand(260, 310)) : Math.floor(rand(80, 130)))
-    : 0;
+    ? (direction === 'inbound' ? Math.floor(rand(250, 310)) : Math.floor(rand(70, 130)))
+    : Math.floor(rand(0, 360));
 
   const origin = pick(ORIGINS);
   let destination;
   do { destination = pick(DESTINATIONS); } while (destination === origin);
 
+  const inductionYear = 1990 + Math.floor(rand(0, 33));
+  const countryOrigin = flag; // flag state = country of registry
+
   return {
     id,
     name,
     mmsi: generateMMSI(flag),
+    imo: generateIMO(id),
     type,
     typeLabel: SHIP_TYPES[type].label,
     color: SHIP_TYPES[type].color,
     silhouette: SHIP_TYPES[type].silhouette,
     flag,
-    lat: +pos.lat.toFixed(5),
-    lng: +pos.lng.toFixed(5),
+    countryOrigin,
+    inductionYear,
+    lat: +lat.toFixed(5),
+    lng: +lng.toFixed(5),
     speed,
     heading,
     origin,
@@ -176,6 +333,9 @@ function makeVessel(id, flag, typeKeys, weights, cumulative, sum, usedNames) {
     direction,
     length: Math.floor(rand(80, 340)),
     draft: +rand(6, 22).toFixed(1),
+    beam: Math.floor(rand(20, 60)),
+    grossTonnage: Math.floor(rand(5000, 180000)),
+    photos: getVesselPhotos(type, id),
   };
 }
 
@@ -189,15 +349,13 @@ export function generateVessels(count = 60) {
   const vessels = [];
   const usedNames = new Set();
 
-  // Guarantee every flag appears at least twice
   const guaranteedFlags = [...FLAGS, ...FLAGS];
   guaranteedFlags.forEach((flag, i) => {
-    vessels.push(makeVessel(i, flag, typeKeys, weights, cumulative, sum, usedNames));
+    vessels.push(makeVessel(i, count, flag, typeKeys, weights, cumulative, sum, usedNames));
   });
 
-  // Fill the rest randomly
   for (let i = guaranteedFlags.length; i < Math.max(count, guaranteedFlags.length); i++) {
-    vessels.push(makeVessel(i, pick(FLAGS), typeKeys, weights, cumulative, sum, usedNames));
+    vessels.push(makeVessel(i, count, pick(FLAGS), typeKeys, weights, cumulative, sum, usedNames));
   }
 
   return vessels;

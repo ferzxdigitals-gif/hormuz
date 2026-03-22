@@ -1,6 +1,24 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import ShipSilhouette from './ShipSilhouette';
 import { getFlagUrl } from '../data/vessels';
+
+function ShipPhoto({ vessel }) {
+  const [err, setErr] = useState(false);
+  if (err) return (
+    <div className="table-ship-thumb table-ship-thumb--fallback">
+      <ShipSilhouette type={vessel.silhouette} color={vessel.color} width={32} />
+    </div>
+  );
+  return (
+    <img
+      src={vessel.photos[0]}
+      alt={vessel.name}
+      className="table-ship-thumb"
+      onError={() => setErr(true)}
+      loading="lazy"
+    />
+  );
+}
 
 export default function VesselTable({ vessels, selectedVessel, onSelectVessel, onSeeOnMap }) {
   const sorted = useMemo(() => [...vessels].sort((a, b) => b.speed - a.speed), [vessels]);
@@ -24,6 +42,7 @@ export default function VesselTable({ vessels, selectedVessel, onSelectVessel, o
           <thead>
             <tr>
               <th>Vessel</th>
+              <th>Photo</th>
               <th>MMSI</th>
               <th>Type</th>
               <th>Flag</th>
@@ -47,9 +66,12 @@ export default function VesselTable({ vessels, selectedVessel, onSelectVessel, o
                   <td>
                     <div className="vessel-cell">
                       {isSelected && <span className="selected-indicator" />}
-                      <ShipSilhouette type={v.silhouette} color={v.color} width={48} />
+                      <ShipSilhouette type={v.silhouette} color={v.color} width={44} />
                       <strong>{v.name}</strong>
                     </div>
+                  </td>
+                  <td>
+                    <ShipPhoto vessel={v} />
                   </td>
                   <td className="mono">{v.mmsi}</td>
                   <td>

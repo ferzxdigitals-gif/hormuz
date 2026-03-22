@@ -5,19 +5,27 @@ import ShipMap from './components/ShipMap';
 import { VesselTypesChart, FlagChart, SpeedChart, HourlyChart } from './components/Charts';
 import TrafficAnalytics from './components/TrafficAnalytics';
 import VesselTable from './components/VesselTable';
+import SideNav from './components/SideNav';
+import VesselDetailsPanel from './components/panels/VesselDetailsPanel';
+import PortsPanel from './components/panels/PortsPanel';
+import NewsPanel from './components/panels/NewsPanel';
+import SimplePanel from './components/panels/SimplePanel';
+import ProfilePanel from './components/panels/ProfilePanel';
 import { generateVessels, generateHourlyTransits } from './data/vessels';
+
+const STUB_PANELS = ['compliance', 'pricing', 'data', 'solutions', 'notifications', 'support'];
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [vessels]   = useState(() => generateVessels(48));
   const [liveVessels, setLiveVessels] = useState(() => generateVessels(48));
   const hourlyData  = useMemo(() => generateHourlyTransits(), []);
-  const [flyTarget, setFlyTarget]         = useState(null);
+  const [flyTarget, setFlyTarget]           = useState(null);
   const [selectedVessel, setSelectedVessel] = useState(null);
-  const [typeFilter, setTypeFilter] = useState(null);
-  const [flagFilter, setFlagFilter] = useState(null);
+  const [typeFilter, setTypeFilter]         = useState(null);
+  const [flagFilter, setFlagFilter]         = useState(null);
+  const [activePanel, setActivePanel]       = useState(null);
 
-  // Apply theme to document
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
@@ -47,7 +55,6 @@ export default function App() {
     });
   }, [liveVessels, typeFilter, flagFilter]);
 
-  // Clear selection if the selected vessel is filtered out
   useEffect(() => {
     if (selectedVessel && !filteredVessels.find(v => v.id === selectedVessel.id)) {
       setSelectedVessel(null);
@@ -71,58 +78,82 @@ export default function App() {
 
   const allVessels = useMemo(() => vessels, [vessels]);
 
+  const panelOpen = !!activePanel;
+
+  function renderPanel() {
+    if (!activePanel) return null;
+    if (activePanel === 'vessels') return <VesselDetailsPanel vessels={allVessels} />;
+    if (activePanel === 'ports')   return <PortsPanel darkMode={darkMode} />;
+    if (activePanel === 'news')    return <NewsPanel />;
+    if (activePanel === 'profile') return <ProfilePanel />;
+    if (STUB_PANELS.includes(activePanel)) return <SimplePanel panelId={activePanel} />;
+    return null;
+  }
+
   return (
-    <>
-      <Header
-        vesselCount={filteredVessels.length}
-        darkMode={darkMode}
-        onToggleDark={() => setDarkMode(d => !d)}
-      />
-      <FilterBar
-        vessels={allVessels}
-        typeFilter={typeFilter}
-        flagFilter={flagFilter}
-        filteredCount={filteredVessels.length}
-        onTypeFilter={setTypeFilter}
-        onFlagFilter={setFlagFilter}
-      />
-      <main className="main-grid">
-        <ShipMap
-          vessels={filteredVessels}
-          flyTarget={flyTarget}
-          selectedVessel={selectedVessel}
-          onSelectVessel={handleSelectFromMap}
+    <div className={`app-root ${panelOpen ? 'app-root--panel-open' : ''}`}>
+      {/* Fixed left sidenav */}
+      <SideNav activePanel={activePanel} onSelect={setActivePanel} />
+
+      {/* Sliding panel */}
+      <div className={`side-panel ${panelOpen ? 'side-panel--open' : ''}`}>
+        <button className="side-panel-close" onClick={() => setActivePanel(null)} title="Close">✕</button>
+        {renderPanel()}
+      </div>
+
+      {/* Main content area — offset by sidenav width */}
+      <div className="content-area">
+        <Header
+          vesselCount={filteredVessels.length}
           darkMode={darkMode}
+          onToggleDark={() => setDarkMode(d => !d)}
         />
-        <aside className="sidebar">
-          <div className="card">
-            <h2>Vessel Types</h2>
-            <VesselTypesChart vessels={filteredVessels} darkMode={darkMode} />
-          </div>
-          <div className="card">
-            <h2>Flag State</h2>
-            <FlagChart vessels={filteredVessels} darkMode={darkMode} />
-          </div>
-          <div className="card">
-            <h2>Speed Distribution</h2>
-            <SpeedChart vessels={filteredVessels} darkMode={darkMode} />
-          </div>
-          <div className="card">
-            <h2>Hourly Transits (24h)</h2>
-            <HourlyChart hourlyData={hourlyData} darkMode={darkMode} />
-          </div>
-        </aside>
-      </main>
-      <TrafficAnalytics darkMode={darkMode} />
-      <VesselTable
-        vessels={filteredVessels}
-        selectedVessel={selectedVessel}
-        onSelectVessel={handleSelectVessel}
-        onSeeOnMap={handleSeeOnMap}
-      />
-      <footer className="footer">
-        AIS tracking · Maritime intelligence · For demonstration purposes only
-      </footer>
-    </>
+        <FilterBar
+          vessels={allVessels}
+          typeFilter={typeFilter}
+          flagFilter={flagFilter}
+          filteredCount={filteredVessels.length}
+          onTypeFilter={setTypeFilter}
+          onFlagFilter={setFlagFilter}
+        />
+        <main className="main-grid">
+          <ShipMap
+            vessels={filteredVessels}
+            flyTarget={flyTarget}
+            selectedVessel={selectedVessel}
+            onSelectVessel={handleSelectFromMap}
+            darkMode={darkMode}
+          />
+          <aside className="sidebar">
+            <div className="card">
+              <h2>Vessel Types</h2>
+              <VesselTypesChart vessels={filteredVessels} darkMode={darkMode} />
+            </div>
+            <div className="card">
+              <h2>Flag State</h2>
+              <FlagChart vessels={filteredVessels} darkMode={darkMode} />
+            </div>
+            <div className="card">
+              <h2>Speed Distribution</h2>
+              <SpeedChart vessels={filteredVessels} darkMode={darkMode} />
+            </div>
+            <div className="card">
+              <h2>Hourly Transits (24h)</h2>
+              <HourlyChart hourlyData={hourlyData} darkMode={darkMode} />
+            </div>
+          </aside>
+        </main>
+        <TrafficAnalytics darkMode={darkMode} />
+        <VesselTable
+          vessels={filteredVessels}
+          selectedVessel={selectedVessel}
+          onSelectVessel={handleSelectVessel}
+          onSeeOnMap={handleSeeOnMap}
+        />
+        <footer className="footer">
+          AIS tracking · Maritime intelligence · For demonstration purposes only
+        </footer>
+      </div>
+    </div>
   );
 }
