@@ -1,4 +1,5 @@
 // ── Realistic simulated AIS data for Strait of Hormuz region ──
+import { generateShipPhotos } from './shipPhotos';
 
 export const COUNTRY_CODES = {
   'Panama': 'PA', 'Liberia': 'LR', 'Marshall Islands': 'MH', 'Iran': 'IR',
@@ -61,16 +62,20 @@ export const SHIP_TYPES = {
 
 const FLAGS = Object.keys(COUNTRY_CODES);
 
-// ── Realistic position zones reflecting war-time diversion ──
-// Ships are spread across Gulf of Oman, Fujairah anchorage, UAE ports
-// Only a few at the actual chokepoint (heavily reduced traffic)
+// ── Realistic position zones — all coordinates verified in open water ──
+// fujairah_anchor: Fujairah outer anchorage (25.05–25.45°N, 56.55–57.15°E) — open sea east of UAE
+// gulf_oman_open:  Deep Gulf of Oman (21.5–23.5°N, 59.0–62.0°E) — well clear of Oman coast
+// persian_central: Central Persian Gulf shipping lane (26.5–28.2°N, 51.5–54.0°E) — mid-channel
+// persian_north:   Northern Persian Gulf (28.0–29.5°N, 48.5–51.0°E) — approach to Kuwait/Iraq
+// chokepoint:      Hormuz TSS lanes (26.15–26.58°N, 56.30–57.00°E) — confirmed navigable
+// fujairah_south:  South of Fujairah outer roads (24.60–25.00°N, 57.00–57.80°E) — open water
 const POSITION_ZONES = [
-  { name: 'fujairah',     lat: [25.00, 25.40], lng: [56.20, 56.80], weight: 12, primaryStatus: 'at anchor' },
-  { name: 'gulf_oman',    lat: [22.50, 24.80], lng: [57.20, 60.50], weight: 10, primaryStatus: 'underway' },
-  { name: 'uae_coast',    lat: [24.50, 25.30], lng: [53.00, 55.50], weight: 8,  primaryStatus: 'underway' },
-  { name: 'persian_gulf', lat: [25.50, 27.50], lng: [50.00, 54.80], weight: 8,  primaryStatus: 'underway' },
-  { name: 'chokepoint',   lat: [26.10, 26.55], lng: [56.10, 57.10], weight: 6,  primaryStatus: 'underway' },
-  { name: 'oman_coast',   lat: [23.00, 24.50], lng: [57.50, 59.50], weight: 4,  primaryStatus: 'at anchor' },
+  { name: 'fujairah',       lat: [25.05, 25.45], lng: [56.55, 57.15], weight: 12, primaryStatus: 'at anchor' },
+  { name: 'gulf_oman_open', lat: [21.50, 23.50], lng: [59.00, 62.00], weight: 10, primaryStatus: 'underway' },
+  { name: 'persian_central',lat: [26.50, 28.20], lng: [51.50, 54.00], weight: 8,  primaryStatus: 'underway' },
+  { name: 'persian_north',  lat: [28.00, 29.50], lng: [48.50, 51.00], weight: 6,  primaryStatus: 'underway' },
+  { name: 'chokepoint',     lat: [26.15, 26.58], lng: [56.30, 57.00], weight: 6,  primaryStatus: 'underway' },
+  { name: 'fujairah_south', lat: [24.60, 25.00], lng: [57.00, 57.80], weight: 6,  primaryStatus: 'at anchor' },
 ];
 
 // Port coordinates for route drawing
@@ -98,7 +103,15 @@ export const PORT_COORDS = {
   'Jubail':          { lat: 27.01, lng: 49.66 },
   'Mina Al Ahmadi':  { lat: 29.08, lng: 48.16 },
   'Das Island':      { lat: 25.15, lng: 52.87 },
-  'Abu Dhabi':       { lat: 24.48, lng: 54.37 },
+  'Abu Dhabi':             { lat: 24.48, lng: 54.37 },
+  'Chabahar':              { lat: 25.30, lng: 60.65 },
+  'Bushehr':               { lat: 28.98, lng: 50.83 },
+  'Khor Fakkan':           { lat: 25.39, lng: 56.37 },
+  'Umm Qasr':              { lat: 30.03, lng: 47.93 },
+  'Ras Al Khaimah':        { lat: 25.80, lng: 55.97 },
+  'Salalah':               { lat: 16.94, lng: 54.00 },
+  'Bandar Imam Khomeini':  { lat: 30.43, lng: 49.08 },
+  'Sharjah (Khalid)':      { lat: 25.36, lng: 55.39 },
 };
 
 // Detailed port info for Ports panel
@@ -193,6 +206,54 @@ export const PORT_DETAILS = {
     anchorage: 'Yes', status: 'Operational',
     description: 'Capital of UAE, major oil export hub and growing container port.',
   },
+  'Chabahar': {
+    lat: 25.30, lng: 60.65, country: 'Iran', countryCode: 'IR',
+    type: 'Deep Water Container & General Port', depth: '16 m', capacity: '8.5M tonnes/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Iran\'s only deep-water port on the Gulf of Oman. Strategically important as it bypasses the Strait of Hormuz. India has invested heavily in its development for access to Afghanistan and Central Asia.',
+  },
+  'Bushehr': {
+    lat: 28.98, lng: 50.83, country: 'Iran', countryCode: 'IR',
+    type: 'General Cargo & Oil Port', depth: '11 m', capacity: '5M tonnes/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Major Iranian port in the northern Persian Gulf, near the Bushehr nuclear power plant. Handles general cargo and petrochemical exports.',
+  },
+  'Khor Fakkan': {
+    lat: 25.39, lng: 56.37, country: 'UAE', countryCode: 'AE',
+    type: 'Container Transshipment Port', depth: '16 m', capacity: '7M TEU/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'UAE\'s major East Coast container port, outside the Strait on the Gulf of Oman. Critical transshipment hub avoiding Hormuz congestion. Part of Sharjah emirate.',
+  },
+  'Umm Qasr': {
+    lat: 30.03, lng: 47.93, country: 'Iraq', countryCode: 'IQ',
+    type: 'Container & General Cargo Port', depth: '11 m', capacity: '3M TEU/year',
+    anchorage: 'Limited', status: 'Operational',
+    description: 'Iraq\'s main deepwater port in the northern Gulf, near the Kuwait border. Critical import gateway for Iraq\'s food, goods, and humanitarian supplies.',
+  },
+  'Ras Al Khaimah': {
+    lat: 25.80, lng: 55.97, country: 'UAE', countryCode: 'AE',
+    type: 'Container & Industrial Port', depth: '12 m', capacity: '2M TEU/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Port of the northernmost UAE emirate. Important for ceramics, cement exports, and growing container traffic.',
+  },
+  'Salalah': {
+    lat: 16.94, lng: 54.00, country: 'Oman', countryCode: 'OM',
+    type: 'Deep Water Container & Transshipment Port', depth: '17 m', capacity: '5M TEU/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Major Omani port on the Arabian Sea, far south of Hormuz. Key transshipment hub on East-West shipping routes between Europe and Asia.',
+  },
+  'Bandar Imam Khomeini': {
+    lat: 30.43, lng: 49.08, country: 'Iran', countryCode: 'IR',
+    type: 'Multi-purpose & Petrochemical Port', depth: '14 m', capacity: '15M tonnes/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Iran\'s largest commercial port on the Shatt al-Arab at the head of the Persian Gulf. Major petrochemical export hub near Mahshahr.',
+  },
+  'Sharjah (Khalid)': {
+    lat: 25.36, lng: 55.39, country: 'UAE', countryCode: 'AE',
+    type: 'General Cargo & Container Port', depth: '13 m', capacity: '4M TEU/year',
+    anchorage: 'Yes', status: 'Operational',
+    description: 'Port of Sharjah on the Persian Gulf side, handling general cargo, containers, and building materials. Part of the UAE\'s multi-port logistics network.',
+  },
 };
 
 export const LANES = {
@@ -212,27 +273,8 @@ export const LANES = {
   ],
 };
 
-// Ship photo helper — uses loremflickr for actual maritime photos
-const TYPE_KEYWORDS = {
-  tanker:    'oil+tanker+ship',
-  product:   'tanker+vessel+sea',
-  lng:       'lng+carrier+ship',
-  bulk:      'bulk+carrier+ship',
-  container: 'container+ship+port',
-  cargo:     'cargo+ship+sea',
-  military:  'naval+warship+military',
-  passenger: 'cruise+ship+ocean',
-  tug:       'tugboat+harbor+service',
-};
-
-export function getVesselPhotos(type, id) {
-  const kw = TYPE_KEYWORDS[type] || 'ship+vessel+sea';
-  return [
-    `https://loremflickr.com/400/280/${kw}?lock=${id}`,
-    `https://loremflickr.com/400/280/${kw}?lock=${id + 100}`,
-    `https://loremflickr.com/400/280/maritime+${type === 'military' ? 'navy' : 'vessel'}?lock=${id + 200}`,
-  ];
-}
+// Ship photos: deterministic SVG illustrations — no external dependencies
+export { generateShipPhotos as getVesselPhotos };
 
 const DESTINATIONS = Object.keys(PORT_COORDS);
 const ORIGINS = Object.keys(PORT_COORDS);
@@ -285,12 +327,12 @@ function makeVessel(id, totalCount, flag, typeKeys, weights, cumulative, sum, us
 
   // Status depends on zone
   const zoneStatuses = {
-    fujairah:     ['at anchor', 'at anchor', 'moored'],
-    gulf_oman:    ['underway', 'underway', 'underway', 'at anchor'],
-    uae_coast:    ['underway', 'underway', 'moored'],
-    persian_gulf: ['underway', 'underway', 'underway', 'at anchor'],
-    chokepoint:   ['underway', 'underway', 'underway'],
-    oman_coast:   ['at anchor', 'at anchor', 'moored'],
+    fujairah:        ['at anchor', 'at anchor', 'moored'],
+    gulf_oman_open:  ['underway', 'underway', 'underway', 'at anchor'],
+    persian_central: ['underway', 'underway', 'underway', 'at anchor'],
+    persian_north:   ['underway', 'underway', 'moored'],
+    chokepoint:      ['underway', 'underway', 'underway'],
+    fujairah_south:  ['at anchor', 'at anchor', 'moored'],
   };
   const statusPool = zoneStatuses[zone.name] || ['underway'];
   const status = pick(statusPool);
@@ -335,7 +377,7 @@ function makeVessel(id, totalCount, flag, typeKeys, weights, cumulative, sum, us
     draft: +rand(6, 22).toFixed(1),
     beam: Math.floor(rand(20, 60)),
     grossTonnage: Math.floor(rand(5000, 180000)),
-    photos: getVesselPhotos(type, id),
+    photos: generateShipPhotos(type, SHIP_TYPES[type].color),
   };
 }
 

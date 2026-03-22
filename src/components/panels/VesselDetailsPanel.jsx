@@ -1,24 +1,14 @@
 import { useState, useMemo } from 'react';
 import { getFlagUrl, SHIP_TYPES } from '../../data/vessels';
+import { generateShipPhotos } from '../../data/shipPhotos';
 import ShipSilhouette from '../ShipSilhouette';
 
 function VesselCard({ vessel, onClick }) {
-  const [imgError, setImgError] = useState(false);
+  const photo = generateShipPhotos(vessel.type, vessel.color)[0];
   return (
     <div className="vd-card" onClick={() => onClick(vessel)}>
       <div className="vd-card-photo">
-        {!imgError ? (
-          <img
-            src={vessel.photos[0]}
-            alt={vessel.name}
-            onError={() => setImgError(true)}
-            loading="lazy"
-          />
-        ) : (
-          <div className="vd-card-photo-fallback">
-            <ShipSilhouette type={vessel.silhouette} color={vessel.color} width={80} />
-          </div>
-        )}
+        <img src={photo} alt={vessel.name} loading="lazy" />
         <span
           className="vd-card-type-badge"
           style={{ background: vessel.color + '22', color: vessel.color, borderColor: vessel.color + '55' }}
@@ -44,19 +34,10 @@ function VesselCard({ vessel, onClick }) {
 
 function PhotoGallery({ photos, vesselName }) {
   const [active, setActive] = useState(0);
-  const [errors, setErrors] = useState({});
   return (
     <div className="vd-gallery">
       <div className="vd-gallery-main">
-        {!errors[active] ? (
-          <img
-            src={photos[active]}
-            alt={`${vesselName} photo ${active + 1}`}
-            onError={() => setErrors(e => ({ ...e, [active]: true }))}
-          />
-        ) : (
-          <div className="vd-gallery-no-photo">No photo available</div>
-        )}
+        <img src={photos[active]} alt={`${vesselName} photo ${active + 1}`} />
       </div>
       <div className="vd-gallery-thumbs">
         {photos.map((p, i) => (
@@ -65,11 +46,7 @@ function PhotoGallery({ photos, vesselName }) {
             className={`vd-gallery-thumb ${i === active ? 'active' : ''}`}
             onClick={() => setActive(i)}
           >
-            {!errors[i] ? (
-              <img src={p} alt={`thumb ${i + 1}`} onError={() => setErrors(e => ({ ...e, [i]: true }))} />
-            ) : (
-              <span style={{ fontSize: 10, color: 'var(--muted)' }}>N/A</span>
-            )}
+            <img src={p} alt={`thumb ${i + 1}`} />
           </button>
         ))}
       </div>
@@ -94,7 +71,7 @@ function VesselDetail({ vessel, onBack }) {
         </div>
       </div>
 
-      <PhotoGallery photos={vessel.photos} vesselName={vessel.name} />
+      <PhotoGallery photos={generateShipPhotos(vessel.type, vessel.color)} vesselName={vessel.name} />
 
       <div className="vd-detail-grid">
         <div className="vd-detail-row"><span>IMO</span><strong>{vessel.imo}</strong></div>

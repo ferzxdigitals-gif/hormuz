@@ -1,23 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import ShipSilhouette from './ShipSilhouette';
 import { getFlagUrl } from '../data/vessels';
+import { generateShipPhotos } from '../data/shipPhotos';
 
 function ShipPhoto({ vessel }) {
-  const [err, setErr] = useState(false);
-  if (err) return (
-    <div className="table-ship-thumb table-ship-thumb--fallback">
-      <ShipSilhouette type={vessel.silhouette} color={vessel.color} width={32} />
-    </div>
-  );
-  return (
-    <img
-      src={vessel.photos[0]}
-      alt={vessel.name}
-      className="table-ship-thumb"
-      onError={() => setErr(true)}
-      loading="lazy"
-    />
-  );
+  const src = generateShipPhotos(vessel.type, vessel.color)[0];
+  return <img src={src} alt={vessel.name} className="table-ship-thumb" loading="lazy" />;
 }
 
 export default function VesselTable({ vessels, selectedVessel, onSelectVessel, onSeeOnMap }) {
